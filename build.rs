@@ -95,7 +95,15 @@ fn main() {
     println!("cargo:rustc-link-lib=z");
 
     let mut build = cc::Build::new();
-    build.include("libpng").include("libz-sys/src/zlib");
+    build.include("libpng");
+    // libpng needs zlib.h. libz-sys (a dependency, `links = "z"`) reports where its headers are
+    // as DEP_Z_INCLUDE (comma-separated when found via pkg-config/vcpkg). Without it, rely on the
+    // system include path, as on Linux/macOS with a system zlib.
+    if let Ok(paths) = env::var("DEP_Z_INCLUDE") {
+        for p in paths.split(',').filter(|p| !p.is_empty()) {
+            build.include(p);
+        }
+    }
     build
         .file("libpng/png.c")
         .file("libpng/pngerror.c")

@@ -19,6 +19,27 @@ decided against proposing the change upstream.
 
 ## Contributions
 
+### 2026-11-09 — bundled libpng builds on ARM64 Windows (MSVC) (Claude Opus 5.5)
+
+**What the maintainer asked for.** Build virtimp_com_app's desktop app natively on a Windows 11
+ARM64 VM (UTM on the Mac), "until it builds and renders", then push this fix to the fork.
+
+**Cause.** On every `arm`/`aarch64` target, `build.rs` compiles libpng's `arm/filter_neon.S`.
+That file is GNU assembler, and under MSVC (`aarch64-pc-windows-msvc`) cc-rs produces no object
+for it, so archiving `libpng.a` failed with `LNK1181: cannot open input file
+'…-filter_neon.o'`. The file has code only when libpng uses its hand-written assembly
+(`PNG_ARM_NEON_IMPLEMENTATION == 2`); `pngpriv.h` picks the intrinsics (`1`) whenever
+`arm_neon.h` exists, as it does under MSVC, so the file is empty there anyway.
+
+**What the AI did.** `build.rs` (~6 LOC): skip `filter_neon.S` when `CARGO_CFG_TARGET_ENV` is
+`msvc`; every other ARM target still compiles it, unchanged.
+
+**Verified.** On the ARM64 VM (MSVC 14.44, HostARM64), with this `build.rs` applied as a local
+`[patch.crates-io]`: virtimp_com_app's `desktop/` built (`--release --features
+virtimp-local/rustcpu`), its 18 unit tests passed, and `virtimp-desktop render` produced a
+correct 1200×1600 Pen and Ink #1 of the test photograph on the rustcpu engine (35.7 s). Not
+built on other ARM targets after the change; their path through `build.rs` is untouched.
+
 ### 2026-10-25 — bundled libpng finds zlib.h via DEP_Z_INCLUDE (Claude Opus 5.5)
 
 **What the maintainer asked for.** Fix the Windows build of yapocis's `text` feature

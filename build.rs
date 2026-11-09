@@ -126,8 +126,13 @@ fn main() {
         build
             .file("libpng/arm/arm_init.c")
             .file("libpng/arm/filter_neon_intrinsics.c")
-            .file("libpng/arm/filter_neon.S")
             .file("libpng/arm/palette_neon_intrinsics.c");
+        // filter_neon.S is GNU assembler, which MSVC's armasm64 can't read. It only has code
+        // when libpng picks its assembly over the intrinsics (PNG_ARM_NEON_IMPLEMENTATION 2);
+        // with arm_neon.h, which MSVC has, libpng uses the intrinsics and the file is empty.
+        if std::env::var("CARGO_CFG_TARGET_ENV").unwrap() != "msvc" {
+            build.file("libpng/arm/filter_neon.S");
+        }
     }
 
     build.compile("libpng.a");
